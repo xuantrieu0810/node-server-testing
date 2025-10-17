@@ -7,6 +7,7 @@
 // By default this version only logs the authorization code and redirects it.
 // Provide real Apple credentials and token-exchange logic later if needed.
 //
+
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
@@ -14,6 +15,8 @@ const bodyParser = require("body-parser");
 require("dotenv").config();
 
 const app = express();
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 const PORT = process.env.PORT || 8080;
 const DEFAULT_APP_LINK =
   process.env.DEFAULT_APP_LINK || `${req.protocol}://${req.get("host")}`;
@@ -33,7 +36,7 @@ app.get("/mock-apple/auth", (req, res) => {
   const ret =
     return_url || `${req.protocol}://${req.get("host")}/callbacks/auth/apple`;
   console.log(
-    "[GET] /auth/mock-apple received code:",
+    "[GET] /mock-apple/auth received code:",
     code,
     " state:",
     state,
@@ -43,23 +46,35 @@ app.get("/mock-apple/auth", (req, res) => {
     user
   );
   if (!code || !idToken)
-    return res.status(400).json({ error: "missing code or idToken" });
+    return res.status(400).json({ error: "[Mock] missing code or idToken" });
 
-  return res.redirect(
-    302,
-    `${ret}?code=${encodeURIComponent(code)}&id_token=${encodeURIComponent(
-      idToken
-    )}${state ? "&state=" + encodeURIComponent(state) : ""}${
-      user ? "&user=" + encodeURIComponent(user) : ""
-    }`
-  );
+  // Tạo form HTML để auto-submit POST request
+  const formHTML = `
+    <html>
+      <body>
+        <form id="appleForm" method="POST" action="${ret}">
+          <input type="hidden" name="code" value="${code}" />
+          <input type="hidden" name="id_token" value="${idToken}" />
+          ${
+            state ? `<input type="hidden" name="state" value="${state}" />` : ""
+          }
+          ${user ? `<input type="hidden" name="user" value="${user}" />` : ""}
+        </form>
+        <script>
+          document.getElementById('appleForm').submit();
+        </script>
+      </body>
+    </html>
+  `;
+
+  return res.send(formHTML);
 });
 
-app.get("/callbacks/auth/apple", (req, res) => {
-  const { code, state, id_token: idToken, user, return_url } = req.query || {};
+app.post("/callbacks/auth/apple", (req, res) => {
+  const { code, state, id_token: idToken, user } = req.body || {};
   const ret = DEFAULT_APP_LINK || DEFAULT_DEEP_LINK;
   console.log(
-    "[GET] /callbacks/auth/apple received:",
+    "[POST] /callbacks/auth/apple received code:",
     code,
     " state:",
     state,
