@@ -7,46 +7,89 @@
 // By default this version only logs the authorization code and redirects it.
 // Provide real Apple credentials and token-exchange logic later if needed.
 //
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const bodyParser = require('body-parser');
-require('dotenv').config();
+const express = require("express");
+const path = require("path");
+const fs = require("fs");
+const bodyParser = require("body-parser");
+require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-const DEFAULT_APP_LINK = process.env.DEFAULT_APP_LINK || 'https://apple-signin-demo.onrender.com/apple_callback';
-const DEFAULT_DEEP_LINK = process.env.DEFAULT_DEEP_LINK || 'myapp://callback';
+const DEFAULT_APP_LINK =
+  process.env.DEFAULT_APP_LINK || `${req.protocol}://${req.get("host")}`;
+const DEFAULT_DEEP_LINK = process.env.DEFAULT_DEEP_LINK || "myapp://callback";
 
 app.use(bodyParser.json());
 // serve static .well-known files
-app.use('/.well-known', express.static(path.join(process.cwd(), 'public', '.well-known')));
+app.use(
+  "/.well-known",
+  express.static(path.join(process.cwd(), "public", ".well-known"))
+);
 
-app.get('/health', (req, res) => res.json({ ok: true }));
+app.get("/health", (req, res) => res.json({ ok: true }));
 
-// Accept both POST (from server exchanges) and GET (browser redirect) for convenience
-app.post('/auth/apple', (req, res) => {
-  const { code, return_url } = req.body || {};
-  const ret = return_url || DEFAULT_DEEP_LINK || DEFAULT_APP_LINK;
-  console.log('[POST] /auth/apple received code:', code, ' return_url:', ret);
-  if (!code) return res.status(400).json({ error: 'missing code' });
-  // redirect with code in query
-  return res.redirect(302, `${ret}?code=${encodeURIComponent(code)}`);
+app.get("/mock-apple/auth", (req, res) => {
+  const { code, state, id_token: idToken, user, return_url } = req.query || {};
+  const ret =
+    return_url || `${req.protocol}://${req.get("host")}/callbacks/auth/apple`;
+  console.log(
+    "[GET] /auth/mock-apple received code:",
+    code,
+    " state:",
+    state,
+    " idToken:",
+    idToken,
+    " user:",
+    user
+  );
+  if (!code || !idToken)
+    return res.status(400).json({ error: "missing code or idToken" });
+
+  return res.redirect(
+    302,
+    `${ret}?code=${encodeURIComponent(code)}&id_token=${encodeURIComponent(
+      idToken
+    )}${state ? "&state=" + encodeURIComponent(state) : ""}${
+      user ? "&user=" + encodeURIComponent(user) : ""
+    }`
+  );
 });
 
-app.get('/auth/apple/callback', (req, res) => {
-  const { code, state, return_url } = req.query || {};
-  const ret = return_url || DEFAULT_DEEP_LINK || DEFAULT_APP_LINK;
-  console.log('[GET] /auth/apple/callback received code:', code, ' state:', state, ' return_url:', ret);
-  if (!code) return res.redirect(`${ret}?error=missing_code`);
-  return res.redirect(302, `${ret}?code=${encodeURIComponent(code)}${state ? '&state=' + encodeURIComponent(state) : ''}`);
+app.get("/callbacks/auth/apple", (req, res) => {
+  const { code, state, id_token: idToken, user, return_url } = req.query || {};
+  const ret = DEFAULT_APP_LINK || DEFAULT_DEEP_LINK;
+  console.log(
+    "[GET] /callbacks/auth/apple received:",
+    code,
+    " state:",
+    state,
+    " idToken:",
+    idToken,
+    " user:",
+    user
+  );
+  if (!code || !idToken)
+    return res.status(400).json({ error: "missing code or idToken" });
+
+  return res.redirect(
+    302,
+    `${ret}?code=${encodeURIComponent(code)}&id_token=${encodeURIComponent(
+      idToken
+    )}${state ? "&state=" + encodeURIComponent(state) : ""}${
+      user ? "&user=" + encodeURIComponent(user) : ""
+    }`
+  );
 });
 
-app.get('/', (req, res) => {
-  res.send('Apple Sign-In Server v2 - Express. See /.well-known for AASA/AssetLinks.');
+app.get("/", (req, res) => {
+  res.send(
+    "Apple Sign-In Server v2 - Express. See /.well-known for AASA/AssetLinks."
+  );
 });
 
 app.listen(PORT, () => {
-  console.log('Server started on port', PORT);
-  console.log('Serve .well-known at /.well-known/apple-app-site-association and /.well-known/assetlinks.json');
+  console.log("Server started on port", PORT);
+  console.log(
+    "Serve .well-known at /.well-known/apple-app-site-association and /.well-known/assetlinks.json"
+  );
 });
