@@ -71,26 +71,16 @@ app.get("/mock-apple/auth", (req, res) => {
 });
 
 app.post("/callbacks/auth/apple", (req, res) => {
+  console.log("[POST] /callbacks/auth/apple received:", req.body);
   const { code, state, id_token: idToken, user } = req.body || {};
   const ret = DEFAULT_APP_LINK || DEFAULT_DEEP_LINK;
-  console.log(
-    "[POST] /callbacks/auth/apple received code:",
-    code,
-    " state:",
-    state,
-    " idToken:",
-    idToken,
-    " user:",
-    user
-  );
-  if (!code || !idToken)
-    return res.status(400).json({ error: "missing code or idToken" });
+  if (!code) return res.status(400).json({ error: "missing code" });
 
   return res.redirect(
     302,
-    `${ret}?code=${encodeURIComponent(code)}&id_token=${encodeURIComponent(
-      idToken
-    )}${state ? "&state=" + encodeURIComponent(state) : ""}${
+    `${ret}?code=${encodeURIComponent(code)}${
+      idToken ? "&id_token=" + encodeURIComponent(idToken) : ""
+    }${state ? "&state=" + encodeURIComponent(state) : ""}${
       user ? "&user=" + encodeURIComponent(user) : ""
     }`
   );
