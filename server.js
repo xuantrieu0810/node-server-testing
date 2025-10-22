@@ -1,26 +1,17 @@
-// server.js - Express server for Apple Sign-In callback (v2)
-// - Serves /.well-known/apple-app-site-association (iOS)
-// - Serves /.well-known/assetlinks.json (Android)
-// - POST /auth/apple  (body: { code, return_url? }) - logs code and redirects to return_url or DEFAULT_APP_LINK
-// - GET /auth/apple/callback (for browser-based redirects) supports query params
-//
-// By default this version only logs the authorization code and redirects it.
-// Provide real Apple credentials and token-exchange logic later if needed.
-//
-
 const express = require("express");
 const path = require("path");
-const fs = require("fs");
 const bodyParser = require("body-parser");
 require("dotenv").config();
 
 const app = express();
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-const PORT = process.env.PORT || 8080;
+
+const PORT = process.env.PORT || 3000;
 const DEFAULT_APP_LINK =
   process.env.DEFAULT_APP_LINK || `${req.protocol}://${req.get("host")}`;
 const DEFAULT_DEEP_LINK = process.env.DEFAULT_DEEP_LINK || "myapp://callback";
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 app.use(bodyParser.json());
 // serve static .well-known files
@@ -48,7 +39,7 @@ app.get("/mock-apple/auth", (req, res) => {
   if (!code || !idToken)
     return res.status(400).json({ error: "[Mock] missing code or idToken" });
 
-  // Tạo form HTML để auto-submit POST request
+  // Create HTML form to auto-submit POST request
   const formHTML = `
     <html>
       <body>
@@ -70,8 +61,40 @@ app.get("/mock-apple/auth", (req, res) => {
   return res.send(formHTML);
 });
 
+app.post("/callbacks/auth/apple_dev", (req, res) => {
+  console.log("[POST] /callbacks/auth/apple_dev received:", req.body);
+  const { code, state, id_token: idToken, user } = req.body || {};
+  if (!code) return res.status(400).json({ error: "missing code" });
+
+  const url = `${req.protocol}://${req.get(
+    "host"
+  )}/app/callback?code=${encodeURIComponent(code)}${
+    idToken ? "&id_token=" + encodeURIComponent(idToken) : ""
+  }${state ? "&state=" + encodeURIComponent(state) : ""}${
+    user ? "&user=" + encodeURIComponent(user) : ""
+  }`;
+  console.log("[POST] /callbacks/auth/apple_dev redirect:", url);
+  return res.redirect(302, url);
+});
+
+app.post("/callbacks/auth/apple_alpha", (req, res) => {
+  console.log("[POST] /callbacks/auth/apple_alpha received:", req.body);
+  const { code, state, id_token: idToken, user } = req.body || {};
+  const ret = DEFAULT_APP_LINK || DEFAULT_DEEP_LINK;
+  if (!code) return res.status(400).json({ error: "missing code" });
+
+  return res.redirect(
+    302,
+    `${ret}/app/callback?code=${encodeURIComponent(code)}${
+      idToken ? "&id_token=" + encodeURIComponent(idToken) : ""
+    }${state ? "&state=" + encodeURIComponent(state) : ""}${
+      user ? "&user=" + encodeURIComponent(user) : ""
+    }`
+  );
+});
+
 app.post("/callbacks/auth/apple", (req, res) => {
-  console.log("[POST] /callbacks/auth/apple received:", req.body);
+  console.log("[POST] /callbacks/auth/apple_alpha received:", req.body);
   const { code, state, id_token: idToken, user } = req.body || {};
   const ret = DEFAULT_APP_LINK || DEFAULT_DEEP_LINK;
   if (!code) return res.status(400).json({ error: "missing code" });
@@ -86,9 +109,9 @@ app.post("/callbacks/auth/apple", (req, res) => {
   );
 });
 
-app.get("/", (req, res) => {
+app.get("/", (_, res) => {
   res.send(
-    "Apple Sign-In Server v2 - Express. See /.well-known for AASA/AssetLinks."
+    "Apple Sign-In Server v2 - Express. See /.well-known/apple-app-site-association and /.well-known/assetlinks.json"
   );
 });
 

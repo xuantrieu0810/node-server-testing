@@ -1,13 +1,1 @@
-{
-  "applinks": {
-    "apps": [],
-    "details": [
-      {
-        "appID": "TEAMID.com.example.myapp",
-        "paths": [
-          "*"
-        ]
-      }
-    ]
-  }
-}
+{"applinks":{"details":[{"appID":"377WZ2RR3B.com.example.fluttersign.test","components":[{"/":"/app/*"}]}]},"webcredentials":{"apps":["377WZ2RR3B.com.example.fluttersign.test"]}}
