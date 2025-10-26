@@ -126,6 +126,10 @@ app.post("/callbacks/auth/apple", (req, res) => {
   );
 });
 
+app.post("/callbacks/auth/google", (req, res) => {
+  console.log("[POST] /callbacks/auth/google received:", req.body);
+});
+
 app.get("/", (_, res) => {
   res.send(
     "Apple Sign-In Server v2 - Express. See /.well-known/apple-app-site-association and /.well-known/assetlinks.json"
