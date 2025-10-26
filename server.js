@@ -42,7 +42,7 @@ app.post("/google-login", async (req, res) => {
         params: {
           client_id: GG_CLIENT_ID,
           client_secret: GG_CLIENT_SECRET,
-          code: authorization_code,
+          code: code,
           grant_type: "authorization_code",
           redirect_uri: redirect_uri || GG_REDIRECT_URI,
         },
