@@ -28,23 +28,29 @@ app.get("/version", (req, res) => res.json({ version: "1.1" }));
 
 app.post("/google-login", async (req, res) => {
   try {
-    const { code, redirect_uri } = req.body;
+    const { authorization_code, redirect_uri } = req.body;
     if (!authorization_code) {
       return res.status(400).json({ error: "Missing authorization_code" });
     }
-
+    if (!GG_CLIENT_ID || !GG_CLIENT_SECRET) {
+      return res.status(500).json({
+        error: "Environment variables GG_CLIENT_ID or GG_CLIENT_SECRET not set",
+      });
+    }
+    const params = {
+      client_id: GG_CLIENT_ID,
+      client_secret: GG_CLIENT_SECRET,
+      code: authorization_code,
+      grant_type: "authorization_code",
+      redirect_uri: redirect_uri || GG_REDIRECT_URI,
+    };
+    console.log("Exchanging code with params:", params);
     // Exchange code to get tokens
     const tokenResponse = await axios.post(
       "https://oauth2.googleapis.com/token",
       null,
       {
-        params: {
-          client_id: GG_CLIENT_ID,
-          client_secret: GG_CLIENT_SECRET,
-          code: code,
-          grant_type: "authorization_code",
-          redirect_uri: redirect_uri || GG_REDIRECT_URI,
-        },
+        params: params,
       }
     );
 
