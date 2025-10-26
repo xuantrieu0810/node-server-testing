@@ -7,9 +7,8 @@ require("dotenv").config();
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const DEFAULT_APP_LINK =
-  process.env.DEFAULT_APP_LINK || `${req.protocol}://${req.get("host")}`;
-const DEFAULT_DEEP_LINK = process.env.DEFAULT_DEEP_LINK || "myapp://callback";
+const DEFAULT_APP_LINK = process.env.DEFAULT_APP_LINK;
+const DEFAULT_DEEP_LINK = process.env.DEFAULT_DEEP_LINK;
 
 // OAuth info from Google Cloud Console
 const GG_CLIENT_ID = process.env.GG_CLIENT_ID;
