@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const axios = require("axios");
 const bodyParser = require("body-parser");
 require("dotenv").config();
 
@@ -10,9 +11,13 @@ const DEFAULT_APP_LINK =
   process.env.DEFAULT_APP_LINK || `${req.protocol}://${req.get("host")}`;
 const DEFAULT_DEEP_LINK = process.env.DEFAULT_DEEP_LINK || "myapp://callback";
 
+// OAuth info from Google Cloud Console
+const GG_CLIENT_ID = process.env.GG_CLIENT_ID;
+const GG_CLIENT_SECRET = process.env.GG_CLIENT_SECRET;
+const GG_REDIRECT_URI = process.env.GG_REDIRECT_URI;
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
 app.use(bodyParser.json());
 // serve static .well-known files
 app.use(
@@ -20,45 +25,52 @@ app.use(
   express.static(path.join(process.cwd(), "public", ".well-known"))
 );
 
-app.get("/health", (req, res) => res.json({ ok: true }));
+app.get("/version", (req, res) => res.json({ version: "1.1" }));
 
-app.get("/mock-apple/auth", (req, res) => {
-  const { code, state, id_token: idToken, user, return_url } = req.query || {};
-  const ret =
-    return_url || `${req.protocol}://${req.get("host")}/callbacks/auth/apple`;
-  console.log(
-    "[GET] /mock-apple/auth received code:",
-    code,
-    " state:",
-    state,
-    " idToken:",
-    idToken,
-    " user:",
-    user
-  );
-  if (!code || !idToken)
-    return res.status(400).json({ error: "[Mock] missing code or idToken" });
+app.post("/google-login", async (req, res) => {
+  try {
+    const { code, redirect_uri } = req.body;
+    if (!authorization_code) {
+      return res.status(400).json({ error: "Missing authorization_code" });
+    }
 
-  // Create HTML form to auto-submit POST request
-  const formHTML = `
-    <html>
-      <body>
-        <form id="appleForm" method="POST" action="${ret}">
-          <input type="hidden" name="code" value="${code}" />
-          <input type="hidden" name="id_token" value="${idToken}" />
-          ${
-            state ? `<input type="hidden" name="state" value="${state}" />` : ""
-          }
-          ${user ? `<input type="hidden" name="user" value="${user}" />` : ""}
-        </form>
-        <script>
-          document.getElementById('appleForm').submit();
-        </script>
-      </body>
-    </html>
-  `;
+    // Exchange code to get tokens
+    const tokenResponse = await axios.post(
+      "https://oauth2.googleapis.com/token",
+      null,
+      {
+        params: {
+          client_id: GG_CLIENT_ID,
+          client_secret: GG_CLIENT_SECRET,
+          code: authorization_code,
+          grant_type: "authorization_code",
+          redirect_uri: redirect_uri || GG_REDIRECT_URI,
+        },
+      }
+    );
 
-  return res.send(formHTML);
+    const tokenData = tokenResponse.data;
+
+    if (!tokenData.access_token) {
+      return res
+        .status(400)
+        .json({ error: "Token exchange failed", details: tokenData });
+    }
+    // Query database to validate user
+    // If valid, generate new access token and
+    // save refresh token to database associated with the user
+    const userAccessToken = "GENERATED_USER_ACCESS_TOKEN"; // Replace with actual token generation logic
+    res.token = userAccessToken;
+    res
+      .status(200)
+      .json({ access_token: userAccessToken, google_tokens: tokenData });
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    res.status(500).json({
+      error: "Internal Server Error",
+      details: err.response?.data || err.message,
+    });
+  }
 });
 
 app.post("/callbacks/auth/apple_dev", (req, res) => {
